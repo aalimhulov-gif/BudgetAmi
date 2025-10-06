@@ -6,7 +6,7 @@ import {
   signOut, 
   onAuthStateChanged,
   updateProfile
-} from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
+} from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js';
 
 class AuthManager {
   constructor() {
@@ -83,4 +83,9 @@ class AuthManager {
   }
 }
 
-export default new AuthManager();
+// Создаем экземпляр менеджера аутентификации
+const authManager = new AuthManager();
+
+// Экспортируем и auth объект, и менеджер
+export { auth };
+export default authManager;

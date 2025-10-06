@@ -1,5 +1,5 @@
 // Главный файл приложения
-import { auth } from './firebase/auth.js';
+import authManager, { auth } from './firebase/auth.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js';
 import dbManager from './firebase/db.js';
 import notifications from './utils/notifications.js';
@@ -47,6 +47,13 @@ class BudgetApp {
 
     // Инициализация аутентификации
     initAuth() {
+        // Проверяем если Firebase настроен
+        if (!auth) {
+            console.warn('Firebase не настроен. Показываем демо-режим.');
+            this.showDemoMode();
+            return;
+        }
+        
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 console.log('Пользователь авторизован:', user.email);
@@ -501,6 +508,22 @@ class BudgetApp {
         } catch (error) {
             console.error('Ошибка обновления бюджета:', error);
         }
+    }
+
+    // Демо-режим когда Firebase не настроен
+    showDemoMode() {
+        // Скрываем экран загрузки
+        const loadingScreen = document.getElementById('loading-screen');
+        if (loadingScreen) loadingScreen.style.display = 'none';
+        
+        // Показываем уведомление о демо-режиме
+        setTimeout(() => {
+            notifications.info('Демо-режим: Firebase не настроен. Настройте Firebase для полной функциональности.');
+        }, 1000);
+        
+        // Показываем главный интерфейс без аутентификации
+        this.showMainInterface();
+        this.navigateTo('home', false);
     }
 }
 

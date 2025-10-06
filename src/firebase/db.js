@@ -14,7 +14,7 @@ import {
   onSnapshot,
   serverTimestamp,
   setDoc
-} from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
+} from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
 
 class DatabaseManager {
   constructor() {
