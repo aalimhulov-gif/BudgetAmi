@@ -83,8 +83,17 @@ class AuthManager {
   }
 }
 
-// Создаем экземпляр менеджера аутентификации
+//  Создаем экземпляр менеджера аутентификации
 const authManager = new AuthManager();
+
+// Экспортируем функции для совместимости
+export const getCurrentUser = () => authManager.getCurrentUser();
+export const getUserId = () => authManager.getUserId();
+export const getUserDisplayName = () => authManager.getUserDisplayName();
+export const register = (email, password, displayName) => authManager.register(email, password, displayName);
+export const login = (email, password) => authManager.login(email, password);
+export const logout = () => authManager.logout();
+export const onAuthStateChange = (callback) => authManager.onAuthStateChange(callback);
 
 // Экспортируем только менеджер
 export default authManager;
