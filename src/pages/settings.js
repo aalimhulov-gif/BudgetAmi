@@ -3,7 +3,8 @@ import notifications from '../utils/notifications.js';
 import currencyManager from '../utils/currency.js';
 import formatters from '../utils/formatters.js';
 import dbManager from '../firebase/db.js';
-import authManager, { auth } from '../firebase/auth.js';
+import authManager from '../firebase/auth.js';
+import { auth } from '../firebase/firebaseConfig.js';
 
 class SettingsPage {
     constructor() {

@@ -1,5 +1,6 @@
 // Главный файл приложения
-import authManager, { auth } from './firebase/auth.js';
+import authManager from './firebase/auth.js';
+import { auth } from './firebase/firebaseConfig.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js';
 import dbManager from './firebase/db.js';
 import notifications from './utils/notifications.js';
@@ -47,24 +48,29 @@ class BudgetApp {
 
     // Инициализация аутентификации
     initAuth() {
-        // Проверяем если Firebase настроен
-        if (!auth) {
-            console.warn('Firebase не настроен. Показываем демо-режим.');
-            this.showDemoMode();
-            return;
-        }
-        
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                console.log('Пользователь авторизован:', user.email);
-                this.currentUser = user;
-                await this.onUserLoggedIn();
-            } else {
-                console.log('Пользователь не авторизован');
-                this.currentUser = null;
-                this.onUserLoggedOut();
+        try {
+            // Проверяем если Firebase настроен
+            if (!auth) {
+                console.warn('Firebase не настроен. Показываем демо-режим.');
+                this.showDemoMode();
+                return;
             }
-        });
+            
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    console.log('Пользователь авторизован:', user.email);
+                    this.currentUser = user;
+                    await this.onUserLoggedIn();
+                } else {
+                    console.log('Пользователь не авторизован');
+                    this.currentUser = null;
+                    this.onUserLoggedOut();
+                }
+            });
+        } catch (error) {
+            console.error('Ошибка инициализации Firebase:', error);
+            this.showDemoMode();
+        }
     }
 
     // Пользователь вошел в систему
@@ -512,13 +518,21 @@ class BudgetApp {
 
     // Демо-режим когда Firebase не настроен
     showDemoMode() {
+        console.log('Запуск в демо-режиме');
+        
         // Скрываем экран загрузки
         const loadingScreen = document.getElementById('loading-screen');
-        if (loadingScreen) loadingScreen.style.display = 'none';
+        if (loadingScreen) {
+            loadingScreen.style.display = 'none';
+        }
         
         // Показываем уведомление о демо-режиме
         setTimeout(() => {
-            notifications.info('Демо-режим: Firebase не настроен. Настройте Firebase для полной функциональности.');
+            if (typeof notifications !== 'undefined' && notifications.info) {
+                notifications.info('Демо-режим: Firebase не настроен. Настройте Firebase для полной функциональности.');
+            } else {
+                console.log('Демо-режим: Firebase не настроен. Настройте Firebase для полной функциональности.');
+            }
         }, 1000);
         
         // Показываем главный интерфейс без аутентификации
@@ -529,11 +543,31 @@ class BudgetApp {
 
 // Ждем загрузки DOM
 document.addEventListener('DOMContentLoaded', () => {
-    // Создаем и запускаем приложение
-    const app = new BudgetApp();
-    
-    // Делаем приложение доступным глобально для отладки
-    window.budgetApp = app;
+    try {
+        // Создаем и запускаем приложение
+        const app = new BudgetApp();
+        
+        // Делаем приложение доступным глобально для отладки
+        window.budgetApp = app;
+        
+        console.log('Семейный бюджет успешно запущен');
+    } catch (error) {
+        console.error('Ошибка запуска приложения:', error);
+        
+        // Показываем сообщение об ошибке
+        const loadingScreen = document.getElementById('loading-screen');
+        if (loadingScreen) {
+            loadingScreen.innerHTML = `
+                <div style="text-align: center; color: #ff6b6b;">
+                    <h3>Ошибка загрузки</h3>
+                    <p>Проверьте консоль браузера для деталей</p>
+                    <button onclick="location.reload()" style="padding: 10px 20px; margin-top: 20px;">
+                        Перезагрузить
+                    </button>
+                </div>
+            `;
+        }
+    }
 });
 
 export default BudgetApp;

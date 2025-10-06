@@ -86,6 +86,5 @@ class AuthManager {
 // Создаем экземпляр менеджера аутентификации
 const authManager = new AuthManager();
 
-// Экспортируем и auth объект, и менеджер
-export { auth };
+// Экспортируем только менеджер
 export default authManager;
