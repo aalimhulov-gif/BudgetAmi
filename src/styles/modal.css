@@ -1,0 +1,462 @@
+/* Стили для модальных окон */
+
+/* Контейнер модальных окон */
+.modal-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 9999;
+    pointer-events: none;
+}
+
+/* Оверлей модального окна */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    pointer-events: auto;
+    z-index: 10000;
+}
+
+.modal-overlay.modal-show {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Диалог модального окна */
+.modal-dialog {
+    position: relative;
+    max-width: 90vw;
+    max-height: 90vh;
+    margin: auto;
+    transform: scale(0.8) translateY(50px);
+    transition: transform 0.3s ease;
+}
+
+.modal-show .modal-dialog {
+    transform: scale(1) translateY(0);
+}
+
+/* Контент модального окна */
+.modal-content {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+    min-width: 300px;
+}
+
+/* Размеры модальных окон */
+.modal-small .modal-content {
+    max-width: 400px;
+}
+
+.modal-medium .modal-content {
+    max-width: 600px;
+}
+
+.modal-large .modal-content {
+    max-width: 800px;
+}
+
+.modal-fullscreen .modal-content {
+    width: 95vw;
+    height: 95vh;
+    max-width: none;
+    max-height: none;
+}
+
+/* Шапка модального окна */
+.modal-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg-primary);
+}
+
+.modal-title {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 4px;
+    line-height: 1;
+    transition: color 0.2s ease;
+}
+
+.modal-close:hover {
+    color: var(--text-primary);
+}
+
+/* Тело модального окна */
+.modal-body {
+    padding: 24px;
+    overflow-y: auto;
+    max-height: calc(90vh - 140px);
+}
+
+/* Анимации */
+.modal-fade {
+    transition: opacity 0.3s ease;
+}
+
+.modal-slide .modal-dialog {
+    transform: translateY(-100px);
+}
+
+.modal-slide.modal-show .modal-dialog {
+    transform: translateY(0);
+}
+
+.modal-zoom .modal-dialog {
+    transform: scale(0.3);
+}
+
+.modal-zoom.modal-show .modal-dialog {
+    transform: scale(1);
+}
+
+/* Диалоги подтверждения */
+.confirm-dialog,
+.alert-dialog,
+.prompt-dialog {
+    text-align: center;
+    padding: 20px 0;
+}
+
+.confirm-dialog p,
+.alert-dialog p,
+.prompt-dialog p {
+    margin: 0 0 20px 0;
+    font-size: 1.1rem;
+    color: var(--text-primary);
+    line-height: 1.5;
+}
+
+.confirm-buttons,
+.alert-buttons,
+.prompt-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
+.prompt-dialog input {
+    width: 100%;
+    margin: 16px 0;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 1rem;
+}
+
+/* Диалог загрузки */
+.loading-dialog {
+    text-align: center;
+    padding: 40px 20px;
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid var(--border-color);
+    border-top: 4px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 20px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.loading-dialog p {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 1rem;
+}
+
+/* Формы в модальных окнах */
+.modal-body .form-group {
+    margin-bottom: 20px;
+}
+
+.modal-body .form-group:last-child {
+    margin-bottom: 0;
+}
+
+.modal-body label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+}
+
+.modal-body .form-control {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 1rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.modal-body .form-control:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
+}
+
+.modal-body .form-control::placeholder {
+    color: var(--text-tertiary);
+}
+
+/* Кнопки в формах */
+.form-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+}
+
+.form-buttons .btn {
+    min-width: 100px;
+}
+
+/* Input Group для связанных элементов */
+.input-group {
+    display: flex;
+    align-items: stretch;
+}
+
+.input-group .form-control {
+    border-radius: 6px 0 0 6px;
+    border-right: none;
+}
+
+.input-group .btn {
+    border-radius: 0 6px 6px 0;
+    border-left: none;
+}
+
+/* Чекбоксы и радиокнопки */
+.form-check {
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.form-check-input {
+    margin-right: 8px;
+}
+
+.form-check-label {
+    margin-bottom: 0;
+    cursor: pointer;
+}
+
+/* Секции настроек */
+.settings-section {
+    margin-bottom: 32px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.settings-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.settings-section h4 {
+    margin: 0 0 20px 0;
+    color: var(--text-primary);
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+/* Детали транзакции */
+.transaction-details {
+    min-width: 300px;
+}
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border-color-light);
+}
+
+.detail-row:last-child {
+    border-bottom: none;
+}
+
+.detail-label {
+    font-weight: 600;
+    color: var(--text-secondary);
+    min-width: 120px;
+}
+
+.detail-value {
+    color: var(--text-primary);
+    text-align: right;
+}
+
+.detail-value.income {
+    color: var(--success-color);
+}
+
+.detail-value.expense {
+    color: var(--danger-color);
+}
+
+/* Цветовой селектор */
+input[type="color"] {
+    width: 60px;
+    height: 40px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    cursor: pointer;
+    background: none;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .modal-dialog {
+        max-width: 95vw;
+        margin: 20px auto;
+    }
+    
+    .modal-content {
+        border-radius: 8px;
+        min-width: auto;
+    }
+    
+    .modal-header {
+        padding: 16px 20px;
+    }
+    
+    .modal-body {
+        padding: 20px;
+        max-height: calc(90vh - 120px);
+    }
+    
+    .modal-title {
+        font-size: 1.1rem;
+    }
+    
+    .form-buttons {
+        flex-direction: column;
+    }
+    
+    .form-buttons .btn {
+        width: 100%;
+        margin: 0;
+    }
+    
+    .confirm-buttons,
+    .alert-buttons,
+    .prompt-buttons {
+        flex-direction: column;
+    }
+    
+    .confirm-buttons .btn,
+    .alert-buttons .btn,
+    .prompt-buttons .btn {
+        width: 100%;
+        margin: 4px 0;
+    }
+}
+
+/* Темная тема */
+[data-theme="dark"] .modal-overlay {
+    background: rgba(0, 0, 0, 0.8);
+}
+
+[data-theme="dark"] .modal-content {
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+}
+
+/* Специальные модальные окна */
+.transaction-modal .modal-body {
+    min-width: 400px;
+}
+
+.settings-modal .modal-body {
+    min-width: 500px;
+    max-height: 70vh;
+}
+
+.category-modal .modal-body {
+    min-width: 350px;
+}
+
+.goal-modal .modal-body {
+    min-width: 450px;
+}
+
+/* Состояния ошибок */
+.form-control.error {
+    border-color: var(--danger-color);
+    box-shadow: 0 0 0 3px rgba(var(--danger-rgb), 0.1);
+}
+
+.error-message {
+    color: var(--danger-color);
+    font-size: 0.85rem;
+    margin-top: 4px;
+    display: block;
+}
+
+/* Состояния успеха */
+.form-control.success {
+    border-color: var(--success-color);
+    box-shadow: 0 0 0 3px rgba(var(--success-rgb), 0.1);
+}
+
+/* Анимация появления */
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-50px) scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.modal-show .modal-dialog {
+    animation: modalSlideIn 0.3s ease-out;
+}

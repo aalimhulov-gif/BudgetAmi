@@ -1,452 +1,369 @@
-// Главная страница приложения
-import userCard from '../components/userCard.js';
-import modal from '../components/modal.js';
-import notifications from '../utils/notifications.js';
-import currencyManager from '../utils/currency.js';
-import formatters from '../utils/formatters.js';
-import authManager from '../firebase/auth.js';
-import dbManager from '../firebase/db.js';
+// Компонент главной страницы
+import { getCurrentUser } from '../firebase/auth.js';
+import { getBudget, getTransactions, subscribeToBudget, subscribeToTransactions } from '../firebase/db.js';
+import { formatCurrency, getCurrentCurrency } from '../utils/currency.js';
+import { formatDate } from '../utils/date.js';
+import { showToast } from '../components/toast.js';
+import { showTransactionForm } from '../components/modal.js';
 
 class HomePage {
     constructor() {
-        this.currentBudget = null;
-        this.categories = [];
+        this.currentBudgetId = null;
+        this.budgetData = null;
+        this.transactions = [];
+        this.subscribers = [];
+        this.arthurBalance = 0;
+        this.valeriaBalance = 0;
         this.init();
     }
 
     init() {
-        this.bindEvents();
+        this.loadBudgetData();
+        this.addEventListeners();
     }
 
-    bindEvents() {
-        // Слушаем открытие модалки транзакции
-        window.openTransactionModal = (type, userId) => {
-            this.openTransactionModal(type, userId);
-        };
+    addEventListeners() {
+        // Кнопки добавления операций
+        document.addEventListener('click', (e) => {
+            if (e.target.id === 'add-income-btn') {
+                this.showAddIncomeModal();
+            } else if (e.target.id === 'add-expense-btn') {
+                this.showAddExpenseModal();
+            }
+        });
 
-        // Обработчик формы добавления транзакции
-        const transactionForm = document.getElementById('transaction-form');
-        if (transactionForm) {
-            transactionForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                this.handleTransactionSubmit(e);
-            });
-        }
+        // Кнопки на карточках пользователей
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('user-add-income')) {
+                const userId = e.target.dataset.userId;
+                this.showAddIncomeModal(userId);
+            } else if (e.target.classList.contains('user-add-expense')) {
+                const userId = e.target.dataset.userId;
+                this.showAddExpenseModal(userId);
+            }
+        });
 
-        // Функция показа модалки приглашения
-        window.showInviteModal = () => {
-            this.showInviteModal();
-        };
+        // Клик по транзакции
+        document.addEventListener('click', (e) => {
+            const transactionItem = e.target.closest('.transaction-item');
+            if (transactionItem) {
+                const transactionId = transactionItem.dataset.transactionId;
+                this.showTransactionDetails(transactionId);
+            }
+        });
     }
 
-    // Загрузить и отобразить данные
-    async loadData() {
+    async loadBudgetData() {
         try {
-            const user = authManager.getCurrentUser();
-            if (!user) return;
-
-            // Получаем бюджет пользователя
-            const budgetResult = await dbManager.getUserBudget(user.uid);
-            if (!budgetResult.success) {
-                console.error('Ошибка загрузки бюджета:', budgetResult.error);
-                return;
+            const user = getCurrentUser();
+            if (!user) {
+                throw new Error('Пользователь не авторизован');
             }
 
-            this.currentBudget = budgetResult.budget;
+            // Пока что используем фиксированный ID бюджета
+            // В реальном приложении это будет браться из настроек пользователя
+            this.currentBudgetId = localStorage.getItem('currentBudgetId') || 'default-budget';
+
+            // Загружаем данные бюджета
+            await this.loadBudget();
             
-            // Загружаем категории
-            await this.loadCategories();
+            // Загружаем транзакции
+            await this.loadTransactions();
             
-            // Отображаем данные
-            this.renderBudgetData();
-            this.renderUserCards();
-            
-            // Подписываемся на обновления в реальном времени
+            // Подписываемся на обновления
             this.subscribeToUpdates();
             
+            // Обновляем интерфейс
+            this.updateUI();
+
         } catch (error) {
             console.error('Ошибка загрузки данных:', error);
-            notifications.error('Ошибка загрузки данных');
+            showToast('Ошибка загрузки данных бюджета', 'error');
         }
     }
 
-    // Загрузить категории
-    async loadCategories() {
-        if (!this.currentBudget) return;
-
+    async loadBudget() {
         try {
-            const result = await dbManager.getCategories(this.currentBudget.id);
-            if (result.success) {
-                this.categories = result.categories;
-                this.updateCategorySelects();
-            }
+            this.budgetData = await getBudget(this.currentBudgetId);
         } catch (error) {
-            console.error('Ошибка загрузки категорий:', error);
+            // Если бюджет не найден, создаем новый
+            console.log('Бюджет не найден, используем локальные данные');
+            this.budgetData = {
+                id: this.currentBudgetId,
+                totalBalance: 0,
+                members: ['artur', 'valeria']
+            };
         }
     }
 
-    // Отобразить данные бюджета
-    renderBudgetData() {
-        if (!this.currentBudget) return;
-
-        // Вычисляем общий баланс
-        const totalBalance = this.currentBudget.members.reduce((sum, member) => sum + member.balance, 0);
-        
-        // Обновляем отображение общего баланса
-        const totalBalanceElement = document.getElementById('total-balance');
-        const currencySymbolElement = document.getElementById('currency-symbol');
-        
-        if (totalBalanceElement) {
-            totalBalanceElement.textContent = currencyManager.format(totalBalance).replace(/[^\d.,\-]/g, '');
-        }
-        
-        if (currencySymbolElement) {
-            currencySymbolElement.textContent = currencyManager.getSymbol();
-        }
-    }
-
-    // Отобразить карточки пользователей
-    renderUserCards() {
-        if (!this.currentBudget) return;
-
-        const container = document.getElementById('users-container');
-        if (!container) return;
-
-        // Очищаем контейнер
-        container.innerHTML = '';
-
-        // Создаем карточки для каждого участника
-        this.currentBudget.members.forEach(member => {
-            const cardElement = userCard.create(member);
-            container.appendChild(cardElement);
-        });
-
-        // Добавляем карточку приглашения, если участников меньше 4
-        if (this.currentBudget.members.length < 4) {
-            const placeholderCard = userCard.createPlaceholder();
-            container.appendChild(placeholderCard);
-        }
-    }
-
-    // Открыть модалку транзакции
-    async openTransactionModal(type, userId) {
-        const title = type === 'income' ? 'Добавить доход' : 'Добавить расход';
-        
-        // Обновляем заголовок модалки
-        const modalTitle = document.getElementById('transaction-modal-title');
-        if (modalTitle) {
-            modalTitle.textContent = title;
-        }
-
-        // Сохраняем тип операции и ID пользователя
-        const form = document.getElementById('transaction-form');
-        if (form) {
-            form.dataset.type = type;
-            form.dataset.userId = userId;
-        }
-
-        // Обновляем список категорий
-        this.updateCategorySelects();
-
-        // Открываем модалку
-        modal.open('transaction-modal');
-    }
-
-    // Обновить селекты категорий
-    updateCategorySelects() {
-        const selects = [
-            document.getElementById('transaction-category'),
-            document.getElementById('limit-category')
-        ];
-
-        selects.forEach(select => {
-            if (!select) return;
-
-            // Очищаем существующие опции (кроме первой)
-            const firstOption = select.querySelector('option:first-child');
-            select.innerHTML = '';
-            if (firstOption) {
-                select.appendChild(firstOption);
-            }
-
-            // Добавляем категории
-            this.categories.forEach(category => {
-                const option = document.createElement('option');
-                option.value = category.name;
-                option.textContent = category.name;
-                select.appendChild(option);
-            });
-        });
-    }
-
-    // Обработать отправку формы транзакции
-    async handleTransactionSubmit(event) {
-        const form = event.target;
-        const formData = modal.getFormData('transaction-modal');
-        
-        if (!formData.amount || !formData.category) {
-            notifications.error('Заполните все обязательные поля');
-            return;
-        }
-
-        const amount = parseFloat(formData.amount);
-        if (amount <= 0) {
-            notifications.error('Сумма должна быть больше нуля');
-            return;
-        }
-
-        const type = form.dataset.type;
-        const userId = form.dataset.userId;
-
-        if (!type || !userId) {
-            notifications.error('Ошибка: не указан тип операции или пользователь');
-            return;
-        }
-
+    async loadTransactions() {
         try {
-            modal.showLoading('transaction-modal', 'Добавление операции...');
+            this.transactions = await getTransactions(this.currentBudgetId, { limit: 10 });
+        } catch (error) {
+            console.log('Ошибка загрузки транзакций, используем пустой массив');
+            this.transactions = [];
+        }
+    }
 
-            const transaction = {
-                type: type,
-                amount: amount,
-                category: formData.category,
-                description: formData.description || '',
-                date: new Date().toISOString()
+    subscribeToUpdates() {
+        // Подписка на изменения бюджета
+        const budgetUnsubscribe = subscribeToBudget(this.currentBudgetId, (budgetData) => {
+            this.budgetData = budgetData;
+            this.updateBalanceDisplay();
+        });
+
+        // Подписка на изменения транзакций
+        const transactionsUnsubscribe = subscribeToTransactions(this.currentBudgetId, (transactions) => {
+            this.transactions = transactions;
+            this.updateTransactionsList();
+            this.calculateUserBalances();
+            this.updateUserCards();
+        });
+
+        this.subscribers.push(budgetUnsubscribe, transactionsUnsubscribe);
+    }
+
+    updateUI() {
+        this.updateBalanceDisplay();
+        this.updateUserCards();
+        this.updateTransactionsList();
+        this.calculateUserBalances();
+    }
+
+    updateBalanceDisplay() {
+        const totalBalanceElement = document.getElementById('total-balance');
+        if (totalBalanceElement && this.budgetData) {
+            totalBalanceElement.textContent = formatCurrency(this.budgetData.totalBalance || 0);
+        }
+    }
+
+    calculateUserBalances() {
+        // Рассчитываем балансы для Артура и Валерии
+        this.arthurBalance = 0;
+        this.valeriaBalance = 0;
+
+        this.transactions.forEach(transaction => {
+            const amount = transaction.amount;
+            const isIncome = transaction.type === 'income';
+            const change = isIncome ? amount : -amount;
+
+            // Определяем пользователя по ID или имени
+            if (transaction.userId === 'artur' || transaction.userName === 'Артур') {
+                this.arthurBalance += change;
+            } else if (transaction.userId === 'valeria' || transaction.userName === 'Валерия') {
+                this.valeriaBalance += change;
+            }
+        });
+    }
+
+    updateUserCards() {
+        // Обновляем карточку Артура
+        const arthurCard = document.querySelector('.user-card[data-user="artur"]');
+        if (arthurCard) {
+            const balanceElement = arthurCard.querySelector('.user-balance');
+            if (balanceElement) {
+                balanceElement.textContent = formatCurrency(this.arthurBalance);
+                balanceElement.className = `user-balance ${this.arthurBalance >= 0 ? 'positive' : 'negative'}`;
+            }
+        }
+
+        // Обновляем карточку Валерии
+        const valeriaCard = document.querySelector('.user-card[data-user="valeria"]');
+        if (valeriaCard) {
+            const balanceElement = valeriaCard.querySelector('.user-balance');
+            if (balanceElement) {
+                balanceElement.textContent = formatCurrency(this.valeriaBalance);
+                balanceElement.className = `user-balance ${this.valeriaBalance >= 0 ? 'positive' : 'negative'}`;
+            }
+        }
+    }
+
+    updateTransactionsList() {
+        const transactionsList = document.querySelector('.recent-transactions-list');
+        if (!transactionsList) return;
+
+        if (this.transactions.length === 0) {
+            transactionsList.innerHTML = '<div class="no-transactions">Транзакций пока нет</div>';
+            return;
+        }
+
+        const transactionsHTML = this.transactions.slice(0, 5).map(transaction => {
+            const date = transaction.createdAt?.toDate ? 
+                transaction.createdAt.toDate() : 
+                new Date(transaction.createdAt);
+
+            return `
+                <div class="transaction-item ${transaction.type}" data-transaction-id="${transaction.id}">
+                    <div class="transaction-info">
+                        <div class="transaction-description">
+                            ${transaction.description || 'Без описания'}
+                        </div>
+                        <div class="transaction-meta">
+                            <span class="transaction-user">${transaction.userName || 'Неизвестно'}</span>
+                            <span class="transaction-date">${formatDate(date, 'dd.mm.yyyy')}</span>
+                        </div>
+                    </div>
+                    <div class="transaction-amount ${transaction.type}">
+                        ${transaction.type === 'income' ? '+' : '-'}${formatCurrency(transaction.amount)}
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        transactionsList.innerHTML = transactionsHTML;
+    }
+
+    showAddIncomeModal(userId = null) {
+        const modal = showTransactionForm('income');
+        
+        // Если указан пользователь, можем предварительно заполнить форму
+        if (userId) {
+            const userNameField = modal.querySelector('#user-name');
+            if (userNameField) {
+                userNameField.value = userId === 'artur' ? 'Артур' : 'Валерия';
+            }
+        }
+
+        // Обработка отправки формы
+        const form = modal.querySelector('#transaction-form');
+        if (form) {
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleTransactionSubmit(e.target, 'income', userId);
+            });
+        }
+    }
+
+    showAddExpenseModal(userId = null) {
+        const modal = showTransactionForm('expense');
+        
+        // Если указан пользователь, можем предварительно заполнить форму
+        if (userId) {
+            const userNameField = modal.querySelector('#user-name');
+            if (userNameField) {
+                userNameField.value = userId === 'artur' ? 'Артур' : 'Валерия';
+            }
+        }
+
+        // Обработка отправки формы
+        const form = modal.querySelector('#transaction-form');
+        if (form) {
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleTransactionSubmit(e.target, 'expense', userId);
+            });
+        }
+    }
+
+    async handleTransactionSubmit(form, type, userId = null) {
+        try {
+            const formData = new FormData(form);
+            const transactionData = {
+                type,
+                amount: parseFloat(formData.get('amount')),
+                description: formData.get('description'),
+                date: formData.get('date'),
+                categoryId: formData.get('category'),
+                userId: userId || getCurrentUser()?.uid,
+                userName: userId === 'artur' ? 'Артур' : 
+                         userId === 'valeria' ? 'Валерия' : 
+                         getCurrentUser()?.displayName || 'Пользователь'
             };
 
-            const result = await dbManager.addTransaction(this.currentBudget.id, userId, transaction);
+            // Здесь должна быть логика сохранения в Firebase
+            // Пока что добавляем в локальный массив
+            const newTransaction = {
+                id: Date.now().toString(),
+                ...transactionData,
+                createdAt: new Date()
+            };
 
-            if (result.success) {
-                notifications.success(`${type === 'income' ? 'Доход' : 'Расход'} успешно добавлен`);
-                modal.close('transaction-modal');
-                
-                // Анимируем изменение в карточке пользователя
-                const userCardElement = document.querySelector(`[data-user-id="${userId}"]`);
-                if (userCardElement) {
-                    userCard.animateTransaction(userCardElement, type, amount);
-                }
-            } else {
-                notifications.error('Ошибка добавления операции: ' + result.error);
+            this.transactions.unshift(newTransaction);
+            
+            // Обновляем UI
+            this.updateTransactionsList();
+            this.calculateUserBalances();
+            this.updateUserCards();
+            
+            // Обновляем общий баланс
+            const balanceChange = type === 'income' ? transactionData.amount : -transactionData.amount;
+            if (this.budgetData) {
+                this.budgetData.totalBalance = (this.budgetData.totalBalance || 0) + balanceChange;
+                this.updateBalanceDisplay();
             }
+
+            showToast('Транзакция успешно добавлена', 'success');
+            
+            // Закрываем модальное окно
+            const modal = form.closest('.modal-overlay');
+            if (modal) {
+                modal.querySelector('.modal-close')?.click();
+            }
+
         } catch (error) {
-            console.error('Ошибка:', error);
-            notifications.error('Произошла ошибка при добавлении операции');
-        } finally {
-            modal.hideLoading('transaction-modal');
+            console.error('Ошибка добавления транзакции:', error);
+            showToast('Ошибка добавления транзакции', 'error');
         }
     }
 
-    // Показать модалку приглашения
-    showInviteModal() {
-        if (!this.currentBudget) return;
+    showTransactionDetails(transactionId) {
+        const transaction = this.transactions.find(t => t.id === transactionId);
+        if (!transaction) return;
 
-        const budgetId = this.currentBudget.id;
-        const formattedId = formatters.formatId(budgetId);
-        
-        const content = `
-            <div class="invite-modal-content">
-                <div class="invite-info">
-                    <h3>Пригласить участника</h3>
-                    <p>Поделитесь этим ID с вашим партнёром для подключения к общему бюджету:</p>
+        const date = transaction.createdAt?.toDate ? 
+            transaction.createdAt.toDate() : 
+            new Date(transaction.createdAt);
+
+        const details = `
+            <div class="transaction-details">
+                <div class="detail-row">
+                    <span class="detail-label">Тип:</span>
+                    <span class="detail-value">${transaction.type === 'income' ? 'Доход' : 'Расход'}</span>
                 </div>
-                
-                <div class="budget-id-display">
-                    <input type="text" value="${formattedId}" readonly id="invite-budget-id">
-                    <button class="btn btn-secondary" onclick="copyBudgetId('invite-budget-id')">
-                        <i class="fas fa-copy"></i> Копировать
-                    </button>
+                <div class="detail-row">
+                    <span class="detail-label">Сумма:</span>
+                    <span class="detail-value ${transaction.type}">
+                        ${transaction.type === 'income' ? '+' : '-'}${formatCurrency(transaction.amount)}
+                    </span>
                 </div>
-                
-                <div class="invite-instructions">
-                    <h4>Инструкция для партнёра:</h4>
-                    <ol>
-                        <li>Зарегистрируйтесь на сайте или войдите в аккаунт</li>
-                        <li>При входе выберите "Присоединиться к бюджету"</li>
-                        <li>Введите этот ID: <strong>${formattedId}</strong></li>
-                        <li>Нажмите "Присоединиться"</li>
-                    </ol>
+                <div class="detail-row">
+                    <span class="detail-label">Описание:</span>
+                    <span class="detail-value">${transaction.description || 'Не указано'}</span>
                 </div>
-                
-                <div class="qr-code-section" style="text-align: center; margin-top: 20px;">
-                    <p style="color: var(--text-secondary); font-size: 0.9rem;">
-                        Или отправьте ссылку для быстрого присоединения:
-                    </p>
-                    <div class="quick-link">
-                        <input type="text" value="${window.location.origin}?join=${budgetId}" readonly style="width: 100%; margin: 10px 0;">
-                        <button class="btn btn-primary" onclick="copyInviteLink('${budgetId}')">
-                            <i class="fas fa-link"></i> Копировать ссылку
-                        </button>
-                    </div>
+                <div class="detail-row">
+                    <span class="detail-label">Пользователь:</span>
+                    <span class="detail-value">${transaction.userName || 'Неизвестно'}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Дата:</span>
+                    <span class="detail-value">${formatDate(date, 'dd.mm.yyyy hh:mm')}</span>
                 </div>
             </div>
         `;
 
-        modal.create({
-            title: 'Пригласить участника',
-            content: content,
-            size: 'medium',
-            actions: [
-                {
-                    text: 'Закрыть',
-                    class: 'btn-secondary',
-                    handler: 'modal.close(arguments[0].target.closest(".modal").id)'
-                }
-            ]
-        });
-    }
-
-    // Подписаться на обновления в реальном времени
-    subscribeToUpdates() {
-        if (!this.currentBudget) return;
-
-        // Подписываемся на изменения бюджета
-        dbManager.subscribeToBudget(this.currentBudget.id, (updatedBudget) => {
-            const previousBudget = this.currentBudget;
-            this.currentBudget = updatedBudget;
-            
-            // Обновляем отображение
-            this.renderBudgetData();
-            this.updateUserCards(previousBudget);
-            
-            // Проверяем новых участников
-            this.checkForNewMembers(previousBudget);
-        });
-    }
-
-    // Обновить карточки пользователей
-    updateUserCards(previousBudget) {
-        if (!this.currentBudget) return;
-
-        const container = document.getElementById('users-container');
-        if (!container) return;
-
-        // Обновляем существующие карточки
-        this.currentBudget.members.forEach(member => {
-            const cardElement = container.querySelector(`[data-user-id="${member.id}"]`);
-            if (cardElement) {
-                userCard.update(cardElement, member);
-            } else {
-                // Новый участник - добавляем карточку
-                const newCardElement = userCard.create(member);
-                const placeholderCard = container.querySelector('.placeholder');
-                if (placeholderCard) {
-                    container.insertBefore(newCardElement, placeholderCard);
-                } else {
-                    container.appendChild(newCardElement);
-                }
-            }
-        });
-
-        // Удаляем карточки участников, которые покинули бюджет
-        if (previousBudget) {
-            const currentMemberIds = this.currentBudget.members.map(m => m.id);
-            previousBudget.members.forEach(member => {
-                if (!currentMemberIds.includes(member.id)) {
-                    const cardElement = container.querySelector(`[data-user-id="${member.id}"]`);
-                    if (cardElement) {
-                        cardElement.remove();
-                    }
-                }
+        // Используем импортированную функцию openModal
+        import('../components/modal.js').then(({ openModal }) => {
+            openModal(details, {
+                title: 'Детали транзакции',
+                size: 'medium'
             });
-        }
-
-        // Управляем отображением карточки приглашения
-        const placeholderCard = container.querySelector('.placeholder');
-        if (this.currentBudget.members.length >= 4) {
-            if (placeholderCard) {
-                placeholderCard.remove();
-            }
-        } else if (!placeholderCard) {
-            const newPlaceholderCard = userCard.createPlaceholder();
-            container.appendChild(newPlaceholderCard);
-        }
-    }
-
-    // Проверить новых участников
-    checkForNewMembers(previousBudget) {
-        if (!previousBudget) return;
-
-        const previousMemberIds = previousBudget.members.map(m => m.id);
-        const newMembers = this.currentBudget.members.filter(m => !previousMemberIds.includes(m.id));
-
-        newMembers.forEach(member => {
-            notifications.showNewMember(member.name);
         });
     }
 
-    // Обновить валюту
-    updateCurrency(newCurrency) {
-        if (this.currentBudget) {
-            // Конвертируем данные бюджета
-            this.currentBudget = currencyManager.convertBudgetAmounts(this.currentBudget, newCurrency);
-            
-            // Обновляем отображение
-            this.renderBudgetData();
-            this.renderUserCards();
-        }
-    }
-
-    // Очистить данные при выходе
-    cleanup() {
-        this.currentBudget = null;
-        this.categories = [];
-        
-        // Отписываемся от всех слушателей
-        dbManager.unsubscribeAll();
-    }
-
-    // Проверить и создать базовые категории
-    async createDefaultCategories() {
-        if (!this.currentBudget || this.categories.length > 0) return;
-
-        const defaultCategories = [
-            { name: 'Еда', icon: 'fas fa-utensils', color: '#FF9800' },
-            { name: 'Транспорт', icon: 'fas fa-car', color: '#2196F3' },
-            { name: 'Развлечения', icon: 'fas fa-gamepad', color: '#9C27B0' },
-            { name: 'Покупки', icon: 'fas fa-shopping-cart', color: '#4CAF50' },
-            { name: 'Здоровье', icon: 'fas fa-heartbeat', color: '#F44336' },
-            { name: 'Дом', icon: 'fas fa-home', color: '#795548' }
-        ];
-
-        try {
-            for (const category of defaultCategories) {
-                await dbManager.addCategory(this.currentBudget.id, category);
-            }
-            
-            // Перезагружаем категории
-            await this.loadCategories();
-            
-            notifications.info('Созданы базовые категории расходов');
-        } catch (error) {
-            console.error('Ошибка создания базовых категорий:', error);
-        }
+    // Обновить валютное отображение
+    updateCurrencyDisplay() {
+        this.updateBalanceDisplay();
+        this.updateUserCards();
+        this.updateTransactionsList();
     }
 }
 
-// Глобальные функции для HTML
-window.copyBudgetId = (inputId = 'budget-id-display') => {
-    const input = document.getElementById(inputId);
-    if (input) {
-        input.select();
-        document.execCommand('copy');
-        notifications.success('ID бюджета скопирован в буфер обмена');
-    }
-};
+// Создаем экземпляр главной страницы
+const homePage = new HomePage();
 
-window.copyInviteLink = (budgetId) => {
-    const link = `${window.location.origin}?join=${budgetId}`;
-    navigator.clipboard.writeText(link).then(() => {
-        notifications.success('Ссылка приглашения скопирована');
-    }).catch(() => {
-        // Fallback для старых браузеров
-        const tempInput = document.createElement('input');
-        tempInput.value = link;
-        document.body.appendChild(tempInput);
-        tempInput.select();
-        document.execCommand('copy');
-        document.body.removeChild(tempInput);
-        notifications.success('Ссылка приглашения скопирована');
-    });
-};
+// Слушаем события смены валюты
+document.addEventListener('currencyChanged', () => {
+    homePage.updateCurrencyDisplay();
+});
 
-export default new HomePage();
+export default homePage;

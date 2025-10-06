@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Семейный бюджет - Артур и Валерия</title>
+    
+    <!-- Font Awesome для иконок -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Основные стили -->
+    <link rel="stylesheet" href="./src/styles/main.css">
+    <link rel="stylesheet" href="./src/styles/themes.css">
+    <link rel="stylesheet" href="./src/styles/components.css">
+    <link rel="stylesheet" href="./src/styles/pages.css">
+    <link rel="stylesheet" href="./src/styles/modal.css">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>">
+</head>
+<body data-theme="dark">
+    <!-- Лоадер -->
+    <div id="loader" class="loader-overlay">
+        <div class="loader">
+            <div class="loading-spinner"></div>
+            <p>Загрузка семейного бюджета...</p>
+        </div>
+    </div>
+
+    <!-- Экран авторизации -->
+    <div id="auth-screen" class="auth-screen hidden">
+        <div class="auth-container">
+            <div class="auth-header">
+                <div class="app-logo">💰</div>
+                <h1>Семейный бюджет</h1>
+                <p>Артур и Валерия управляют семейными финансами</p>
+            </div>
+
+            <!-- Логин форма -->
+            <div id="login-form" class="auth-form">
+                <h2>Вход в систему</h2>
+                <div class="input-group">
+                    <i class="fas fa-envelope"></i>
+                    <input type="email" id="login-email" placeholder="Email" required>
+                </div>
+                <div class="input-group">
+                    <i class="fas fa-lock"></i>
+                    <input type="password" id="login-password" placeholder="Пароль" required>
+                </div>
+                <button id="login-btn" class="btn btn-primary">
+                    <i class="fas fa-sign-in-alt"></i> Войти
+                </button>
+                <p class="auth-switch">
+                    Нет аккаунта? <a href="#" id="switch-to-register">Зарегистрироваться</a>
+                </p>
+            </div>
+
+            <!-- Регистрация форма -->
+            <div id="register-form" class="auth-form hidden">
+                <h2>Регистрация</h2>
+                <div class="input-group">
+                    <i class="fas fa-user"></i>
+                    <input type="text" id="register-name" placeholder="Ваше имя" required>
+                </div>
+                <div class="input-group">
+                    <i class="fas fa-envelope"></i>
+                    <input type="email" id="register-email" placeholder="Email" required>
+                </div>
+                <div class="input-group">
+                    <i class="fas fa-lock"></i>
+                    <input type="password" id="register-password" placeholder="Пароль (минимум 6 символов)" required>
+                </div>
+                <div class="input-group">
+                    <i class="fas fa-key"></i>
+                    <input type="text" id="budget-id" placeholder="ID бюджета (оставьте пустым для создания нового)">
+                </div>
+                <button id="register-btn" class="btn btn-primary">
+                    <i class="fas fa-user-plus"></i> Создать аккаунт
+                </button>
+                <p class="auth-switch">
+                    Уже есть аккаунт? <a href="#" id="switch-to-login">Войти</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Основное приложение -->
+    <div id="main-app" class="main-app hidden">
+        <!-- Шапка приложения -->
+        <header class="app-header">
+            <div class="header-left">
+                <div class="app-logo">💰</div>
+                <h1>Семейный бюджет</h1>
+            </div>
+            
+            <div class="header-center">
+                <div class="total-balance-card">
+                    <span class="balance-label">Общий баланс</span>
+                    <span id="total-balance" class="balance-amount">0.00 zł</span>
+                </div>
+            </div>
+            
+            <div class="header-right">
+                <div class="header-controls">
+                    <select id="currency-selector" class="currency-selector">
+                        <option value="PLN">PLN</option>
+                        <option value="USD">USD</option>
+                        <option value="UAH">UAH</option>
+                    </select>
+                    <button id="theme-toggle" class="theme-toggle" title="Переключить тему">🌙</button>
+                </div>
+                
+                <div class="user-info">
+                    <span class="user-name">Пользователь</span>
+                    <button id="logout-btn" class="logout-btn" title="Выйти">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Навигация -->
+        <nav class="main-nav">
+            <a href="#" class="nav-link active" data-page="home">
+                <span class="nav-icon">🏠</span>
+                <span class="nav-text">Главная</span>
+            </a>
+            <a href="#" class="nav-link" data-page="categories">
+                <span class="nav-icon">📁</span>
+                <span class="nav-text">Категории</span>
+            </a>
+            <a href="#" class="nav-link" data-page="limits">
+                <span class="nav-icon">⚠️</span>
+                <span class="nav-text">Лимиты</span>
+            </a>
+            <a href="#" class="nav-link" data-page="goals">
+                <span class="nav-icon">🎯</span>
+                <span class="nav-text">Цели</span>
+            </a>
+            <a href="#" class="nav-link" data-page="operations">
+                <span class="nav-icon">📋</span>
+                <span class="nav-text">Операции</span>
+            </a>
+            <a href="#" class="nav-link" data-page="settings">
+                <span class="nav-icon">⚙️</span>
+                <span class="nav-text">Настройки</span>
+            </a>
+        </nav>
+
+        <!-- Основной контент -->
+        <main class="main-content">
+            <!-- Главная страница -->
+            <div id="home-page" class="page">
+                <div class="page-header">
+                    <h2>Главная</h2>
+                    <div class="quick-actions">
+                        <button id="add-income-btn" class="btn btn-success">
+                            <i class="fas fa-plus"></i> Доход
+                        </button>
+                        <button id="add-expense-btn" class="btn btn-danger">
+                            <i class="fas fa-minus"></i> Расход
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Карточки пользователей -->
+                <div class="user-cards">
+                    <div class="user-card" data-user="artur">
+                        <div class="user-avatar">👨‍💼</div>
+                        <div class="user-info">
+                            <h3>Артур</h3>
+                            <div class="user-balance positive">0.00 zł</div>
+                        </div>
+                        <div class="user-actions">
+                            <button class="btn btn-sm btn-success user-add-income" data-user-id="artur">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger user-add-expense" data-user-id="artur">
+                                <i class="fas fa-minus"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="user-card" data-user="valeria">
+                        <div class="user-avatar">👩‍💼</div>
+                        <div class="user-info">
+                            <h3>Валерия</h3>
+                            <div class="user-balance positive">0.00 zł</div>
+                        </div>
+                        <div class="user-actions">
+                            <button class="btn btn-sm btn-success user-add-income" data-user-id="valeria">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger user-add-expense" data-user-id="valeria">
+                                <i class="fas fa-minus"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Последние транзакции -->
+                <div class="recent-transactions">
+                    <h3>Последние операции</h3>
+                    <div class="recent-transactions-list">
+                        <!-- Транзакции будут добавлены динамически -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Страница категорий -->
+            <div id="categories-page" class="page" style="display: none;">
+                <div class="page-header">
+                    <h2>Категории</h2>
+                    <button class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Добавить категорию
+                    </button>
+                </div>
+                <div class="categories-grid">
+                    <!-- Категории будут добавлены динамически -->
+                </div>
+            </div>
+
+            <!-- Страница лимитов -->
+            <div id="limits-page" class="page" style="display: none;">
+                <div class="page-header">
+                    <h2>Лимиты</h2>
+                    <button class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Добавить лимит
+                    </button>
+                </div>
+                <div class="limits-list">
+                    <!-- Лимиты будут добавлены динамически -->
+                </div>
+            </div>
+
+            <!-- Страница целей -->
+            <div id="goals-page" class="page" style="display: none;">
+                <div class="page-header">
+                    <h2>Цели</h2>
+                    <button class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Добавить цель
+                    </button>
+                </div>
+                <div class="goals-grid">
+                    <!-- Цели будут добавлены динамически -->
+                </div>
+            </div>
+
+            <!-- Страница операций -->
+            <div id="operations-page" class="page" style="display: none;">
+                <div class="page-header">
+                    <h2>Все операции</h2>
+                    <div class="operations-filters">
+                        <input type="search" placeholder="Поиск..." class="search-input">
+                        <select class="filter-select">
+                            <option value="">Все типы</option>
+                            <option value="income">Доходы</option>
+                            <option value="expense">Расходы</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="operations-list">
+                    <!-- Операции будут добавлены динамически -->
+                </div>
+            </div>
+
+            <!-- Страница настроек -->
+            <div id="settings-page" class="page" style="display: none;">
+                <div class="page-header">
+                    <h2>Настройки</h2>
+                </div>
+                <div class="settings-sections">
+                    <!-- Настройки будут добавлены динамически -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Контейнер для модальных окон -->
+    <div id="modal-container" class="modal-container"></div>
+
+    <!-- Контейнер для уведомлений -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Скрипты -->
+    <script type="module">
+        // Инициализация приложения
+        import { initializeApp } from './src/firebase/firebaseConfig.js';
+        import { initAuth } from './src/firebase/auth.js';
+        import { initCurrency } from './src/utils/currency.js';
+        import './src/components/navigation.js';
+        import './src/components/toast.js';
+        import './src/components/modal.js';
+        import './src/pages/home.js';
+
+        // Инициализация при загрузке
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                // Инициализируем Firebase
+                await initializeApp();
+                
+                // Инициализируем валюты
+                initCurrency();
+                
+                // Инициализируем аутентификацию
+                initAuth();
+                
+                // Скрываем лоадер
+                setTimeout(() => {
+                    document.getElementById('loader').style.display = 'none';
+                }, 1000);
+                
+            } catch (error) {
+                console.error('Ошибка инициализации приложения:', error);
+                document.getElementById('loader').style.display = 'none';
+            }
+        });
+    </script>
+
+    <!-- Переключение между формами авторизации -->
+    <script>
+        document.addEventListener('click', (e) => {
+            if (e.target.id === 'switch-to-register') {
+                e.preventDefault();
+                document.getElementById('login-form').classList.add('hidden');
+                document.getElementById('register-form').classList.remove('hidden');
+            } else if (e.target.id === 'switch-to-login') {
+                e.preventDefault();
+                document.getElementById('register-form').classList.add('hidden');
+                document.getElementById('login-form').classList.remove('hidden');
+            }
+        });
+    </script>
+</body>
+</html>
+                    <i class="fas fa-tags"></i> Категории
+                </a>
+                <a href="#limits" class="nav-link" data-page="limits">
+                    <i class="fas fa-chart-pie"></i> Лимиты
+                </a>
+                <a href="#goals" class="nav-link" data-page="goals">
+                    <i class="fas fa-bullseye"></i> Цели
+                </a>
+                <a href="#operations" class="nav-link" data-page="operations">
+                    <i class="fas fa-list"></i> Операции
+                </a>
+                <a href="#settings" class="nav-link" data-page="settings">
+                    <i class="fas fa-cog"></i> Настройки
+                </a>
+            </div>
+
+            <div class="nav-actions">
+                <!-- Переключатель темы -->
+                <button id="theme-toggle" class="theme-toggle" title="Сменить тему">
+                    <i class="fas fa-moon"></i>
+                </button>
+                
+                <!-- Валюта -->
+                <div class="currency-display">
+                    <span id="current-currency">PLN</span>
+                </div>
+                
+                <!-- Пользователь -->
+                <div class="user-menu">
+                    <span id="user-name">Пользователь</span>
+                    <button id="logout-btn" class="btn btn-outline">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Контейнер страниц -->
+        <main class="main-content">
+            <!-- Главная страница -->
+            <div id="home-page" class="page active">
+                <!-- Здесь будет загружена главная страница -->
+            </div>
+
+            <!-- Страница категорий -->
+            <div id="categories-page" class="page hidden">
+                <!-- Здесь будет загружена страница категорий -->
+            </div>
+
+            <!-- Страница лимитов -->
+            <div id="limits-page" class="page hidden">
+                <!-- Здесь будет загружена страница лимитов -->
+            </div>
+
+            <!-- Страница целей -->
+            <div id="goals-page" class="page hidden">
+                <!-- Здесь будет загружена страница целей -->
+            </div>
+
+            <!-- Страница операций -->
+            <div id="operations-page" class="page hidden">
+                <!-- Здесь будет загружена страница операций -->
+            </div>
+
+            <!-- Страница настроек -->
+            <div id="settings-page" class="page hidden">
+                <!-- Здесь будет загружена страница настроек -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast уведомления -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Модальное окно операции -->
+    <div id="transaction-modal" class="modal">
+        <!-- Содержимое будет загружено динамически -->
+    </div>
+
+    <!-- Модальное окно подтверждения -->
+    <div id="confirm-modal" class="modal">
+        <!-- Содержимое будет загружено динамически -->
+    </div>
+
+    <!-- Основные скрипты -->
+    <script type="module" src="./src/firebase/auth.js"></script>
+    <script type="module" src="./src/firebase/db.js"></script>
+    <script type="module" src="./src/utils/currency.js"></script>
+    <script type="module" src="./src/utils/helpers.js"></script>
+    <script type="module" src="./src/utils/themes.js"></script>
+    <script type="module" src="./src/components/toast.js"></script>
+    <script type="module" src="./src/components/modal.js"></script>
+    <script type="module" src="./src/components/navigation.js"></script>
+    <script type="module" src="./src/app.js"></script>
+</body>
+</html>

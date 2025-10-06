@@ -1,382 +1,379 @@
-// Компонент для работы с модальными окнами
-class ModalComponent {
+// Система модальных окон
+class ModalManager {
     constructor() {
-        this.activeModals = new Set();
+        this.currentModal = null;
+        this.modalStack = [];
+        this.initialized = false;
         this.init();
     }
 
     init() {
-        // Обработчик для закрытия модалок по клику на overlay
+        if (this.initialized) return;
+        
+        // Создаем контейнер для модальных окон
+        this.createModalContainer();
+        
+        // Добавляем обработчики событий
+        this.addEventListeners();
+        
+        this.initialized = true;
+    }
+
+    createModalContainer() {
+        const existingContainer = document.getElementById('modal-container');
+        if (existingContainer) {
+            existingContainer.remove();
+        }
+
+        const container = document.createElement('div');
+        container.id = 'modal-container';
+        container.className = 'modal-container';
+        document.body.appendChild(container);
+    }
+
+    addEventListeners() {
+        // Закрытие по клику на оверлей
         document.addEventListener('click', (e) => {
-            if (e.target.classList.contains('modal')) {
-                this.close(e.target.id);
+            if (e.target.classList.contains('modal-overlay')) {
+                this.closeModal();
             }
         });
 
-        // Обработчик для закрытия модалок по ESC
+        // Закрытие по Escape
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                this.closeAll();
+            if (e.key === 'Escape' && this.currentModal) {
+                this.closeModal();
             }
         });
     }
 
     // Открыть модальное окно
-    open(modalId, data = {}) {
-        const modal = document.getElementById(modalId);
-        if (!modal) {
-            console.error(`Модальное окно с ID "${modalId}" не найдено`);
-            return false;
-        }
-
-        // Заполняем форму данными, если они переданы
-        if (Object.keys(data).length > 0) {
-            this.populateForm(modal, data);
-        }
-
-        // Показываем модальное окно
-        modal.classList.add('active');
-        this.activeModals.add(modalId);
-
-        // Фокусируемся на первом поле ввода
-        const firstInput = modal.querySelector('input, select, textarea');
-        if (firstInput) {
-            setTimeout(() => firstInput.focus(), 100);
-        }
-
-        // Блокируем прокрутку фона
-        if (this.activeModals.size === 1) {
-            document.body.style.overflow = 'hidden';
-        }
-
-        // Вызываем событие открытия
-        this.dispatchEvent(modalId, 'opened', data);
-
-        return true;
-    }
-
-    // Закрыть модальное окно
-    close(modalId) {
-        const modal = document.getElementById(modalId);
-        if (!modal) return false;
-
-        modal.classList.remove('active');
-        this.activeModals.delete(modalId);
-
-        // Очищаем форму
-        this.clearForm(modal);
-
-        // Разблокируем прокрутку, если нет других модалок
-        if (this.activeModals.size === 0) {
-            document.body.style.overflow = '';
-        }
-
-        // Вызываем событие закрытия
-        this.dispatchEvent(modalId, 'closed');
-
-        return true;
-    }
-
-    // Закрыть все модальные окна
-    closeAll() {
-        const modals = Array.from(this.activeModals);
-        modals.forEach(modalId => this.close(modalId));
-    }
-
-    // Заполнить форму данными
-    populateForm(modal, data) {
-        Object.keys(data).forEach(key => {
-            const field = modal.querySelector(`[name="${key}"], #${key}`);
-            if (field) {
-                if (field.type === 'checkbox' || field.type === 'radio') {
-                    field.checked = data[key];
-                } else {
-                    field.value = data[key];
-                }
-            }
-        });
-    }
-
-    // Очистить форму
-    clearForm(modal) {
-        const form = modal.querySelector('form');
-        if (form) {
-            form.reset();
-        }
-
-        // Очищаем дополнительные поля
-        const fields = modal.querySelectorAll('input, select, textarea');
-        fields.forEach(field => {
-            if (field.type === 'checkbox' || field.type === 'radio') {
-                field.checked = false;
-            } else if (field.type !== 'submit' && field.type !== 'button') {
-                field.value = '';
-            }
-        });
-    }
-
-    // Получить данные из формы
-    getFormData(modalId) {
-        const modal = document.getElementById(modalId);
-        if (!modal) return null;
-
-        const form = modal.querySelector('form');
-        if (!form) return null;
-
-        const formData = new FormData(form);
-        const data = {};
-
-        // Преобразуем FormData в обычный объект
-        for (const [key, value] of formData.entries()) {
-            data[key] = value;
-        }
-
-        // Обрабатываем дополнительные поля
-        const fields = form.querySelectorAll('input, select, textarea');
-        fields.forEach(field => {
-            if (field.name || field.id) {
-                const key = field.name || field.id;
-                if (field.type === 'checkbox') {
-                    data[key] = field.checked;
-                } else if (field.type === 'number') {
-                    data[key] = parseFloat(field.value) || 0;
-                } else if (field.type === 'date') {
-                    data[key] = field.value ? new Date(field.value) : null;
-                }
-            }
-        });
-
-        return data;
-    }
-
-    // Показать состояние загрузки в модальном окне
-    showLoading(modalId, message = 'Загрузка...') {
-        const modal = document.getElementById(modalId);
-        if (!modal) return;
-
-        const submitButton = modal.querySelector('.btn-primary, button[type="submit"]');
-        if (submitButton) {
-            submitButton.disabled = true;
-            submitButton.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${message}`;
-        }
-
-        // Блокируем все поля формы
-        const fields = modal.querySelectorAll('input, select, textarea, button');
-        fields.forEach(field => {
-            field.disabled = true;
-        });
-    }
-
-    // Скрыть состояние загрузки
-    hideLoading(modalId) {
-        const modal = document.getElementById(modalId);
-        if (!modal) return;
-
-        const submitButton = modal.querySelector('.btn-primary, button[type="submit"]');
-        if (submitButton) {
-            submitButton.disabled = false;
-            // Восстанавливаем оригинальный текст кнопки
-            const originalText = submitButton.dataset.originalText || 'Сохранить';
-            submitButton.innerHTML = originalText;
-        }
-
-        // Разблокируем поля формы
-        const fields = modal.querySelectorAll('input, select, textarea, button');
-        fields.forEach(field => {
-            field.disabled = false;
-        });
-    }
-
-    // Показать ошибку в модальном окне
-    showError(modalId, message) {
-        const modal = document.getElementById(modalId);
-        if (!modal) return;
-
-        // Удаляем предыдущие ошибки
-        const existingError = modal.querySelector('.modal-error');
-        if (existingError) {
-            existingError.remove();
-        }
-
-        // Создаем элемент ошибки
-        const errorElement = document.createElement('div');
-        errorElement.className = 'modal-error';
-        errorElement.style.cssText = `
-            background: var(--error-color);
-            color: white;
-            padding: 10px 15px;
-            border-radius: 6px;
-            margin: 10px 0;
-            font-size: 0.875rem;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        `;
-        errorElement.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${message}`;
-
-        // Вставляем ошибку в начало тела модального окна
-        const modalBody = modal.querySelector('.modal-body');
-        if (modalBody) {
-            modalBody.insertBefore(errorElement, modalBody.firstChild);
-        }
-
-        // Автоматически убираем ошибку через 5 секунд
-        setTimeout(() => {
-            if (errorElement.parentNode) {
-                errorElement.remove();
-            }
-        }, 5000);
-    }
-
-    // Создать подтверждающее модальное окно
-    createConfirm(title, message, onConfirm, onCancel = null) {
-        const modalId = 'confirm-modal-' + Date.now();
-        
-        const modalHtml = `
-            <div id="${modalId}" class="modal modal-confirm">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h2>${title}</h2>
-                    </div>
-                    <div class="modal-body">
-                        <div class="confirm-icon">
-                            <i class="fas fa-question-circle"></i>
-                        </div>
-                        <div class="confirm-message">${message}</div>
-                    </div>
-                    <div class="modal-actions">
-                        <button type="button" class="btn btn-secondary" onclick="modal.handleConfirm('${modalId}', false)">
-                            Отмена
-                        </button>
-                        <button type="button" class="btn btn-primary" onclick="modal.handleConfirm('${modalId}', true)">
-                            Подтвердить
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        // Добавляем модальное окно в DOM
-        document.body.insertAdjacentHTML('beforeend', modalHtml);
-
-        // Сохраняем колбэки
-        const modal = document.getElementById(modalId);
-        modal._onConfirm = onConfirm;
-        modal._onCancel = onCancel;
-
-        // Открываем модальное окно
-        this.open(modalId);
-
-        return modalId;
-    }
-
-    // Обработать ответ на подтверждение
-    handleConfirm(modalId, confirmed) {
-        const modal = document.getElementById(modalId);
-        if (!modal) return;
-
-        const result = confirmed;
-
-        if (result && modal._onConfirm) {
-            modal._onConfirm();
-        } else if (!result && modal._onCancel) {
-            modal._onCancel();
-        }
-
-        // Закрываем и удаляем модальное окно
-        this.close(modalId);
-        setTimeout(() => {
-            modal.remove();
-        }, 300);
-    }
-
-    // Создать модальное окно с произвольным содержимым
-    create(options = {}) {
+    openModal(modalContent, options = {}) {
         const defaultOptions = {
-            id: 'dynamic-modal-' + Date.now(),
-            title: 'Модальное окно',
-            content: '',
-            size: 'medium', // small, medium, large
-            closable: true,
-            actions: []
+            title: '',
+            size: 'medium', // small, medium, large, fullscreen
+            showCloseButton: true,
+            closeOnOverlay: true,
+            closeOnEscape: true,
+            className: '',
+            animation: 'fade', // fade, slide, zoom
+            onOpen: null,
+            onClose: null
         };
 
         const config = { ...defaultOptions, ...options };
+
+        // Если есть активное модальное окно, добавляем в стек
+        if (this.currentModal) {
+            this.modalStack.push(this.currentModal);
+            this.currentModal.style.display = 'none';
+        }
+
+        // Создаем модальное окно
+        const modal = this.createModal(modalContent, config);
         
-        const sizeClass = {
-            small: 'modal-small',
-            medium: '',
-            large: 'modal-large'
-        };
+        // Добавляем в контейнер
+        const container = document.getElementById('modal-container');
+        container.appendChild(modal);
 
-        const actionsHtml = config.actions.map(action => 
-            `<button type="button" class="btn ${action.class || 'btn-secondary'}" 
-                onclick="${action.handler}">${action.text}</button>`
-        ).join('');
+        // Устанавливаем как текущее
+        this.currentModal = modal;
 
-        const modalHtml = `
-            <div id="${config.id}" class="modal ${sizeClass[config.size] || ''}">
+        // Показываем модальное окно с анимацией
+        setTimeout(() => {
+            modal.classList.add('modal-show');
+            if (config.onOpen) {
+                config.onOpen(modal);
+            }
+        }, 10);
+
+        // Блокируем скролл страницы
+        document.body.style.overflow = 'hidden';
+
+        return modal;
+    }
+
+    createModal(content, config) {
+        const modal = document.createElement('div');
+        modal.className = `modal-overlay modal-${config.size} modal-${config.animation} ${config.className}`;
+        
+        modal.innerHTML = `
+            <div class="modal-dialog">
                 <div class="modal-content">
-                    <div class="modal-header">
-                        <h2>${config.title}</h2>
-                        ${config.closable ? `<button class="close-btn" onclick="modal.close('${config.id}')"><i class="fas fa-times"></i></button>` : ''}
-                    </div>
+                    ${config.title ? `
+                        <div class="modal-header">
+                            <h3 class="modal-title">${config.title}</h3>
+                            ${config.showCloseButton ? '<button class="modal-close" aria-label="Закрыть">&times;</button>' : ''}
+                        </div>
+                    ` : ''}
                     <div class="modal-body">
-                        ${config.content}
+                        ${typeof content === 'string' ? content : ''}
                     </div>
-                    ${actionsHtml ? `<div class="modal-actions">${actionsHtml}</div>` : ''}
                 </div>
             </div>
         `;
 
-        document.body.insertAdjacentHTML('beforeend', modalHtml);
-        this.open(config.id);
-
-        return config.id;
-    }
-
-    // Обновить содержимое модального окна
-    updateContent(modalId, content) {
-        const modal = document.getElementById(modalId);
-        if (!modal) return false;
-
-        const modalBody = modal.querySelector('.modal-body');
-        if (modalBody) {
-            modalBody.innerHTML = content;
-            return true;
+        // Если content - элемент DOM, добавляем его
+        if (content instanceof HTMLElement) {
+            const body = modal.querySelector('.modal-body');
+            body.innerHTML = '';
+            body.appendChild(content);
         }
 
-        return false;
+        // Добавляем обработчик закрытия
+        if (config.showCloseButton) {
+            const closeBtn = modal.querySelector('.modal-close');
+            if (closeBtn) {
+                closeBtn.addEventListener('click', () => this.closeModal());
+            }
+        }
+
+        // Настройка закрытия по клику на оверлей
+        if (!config.closeOnOverlay) {
+            modal.addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+        }
+
+        // Сохраняем конфигурацию
+        modal._modalConfig = config;
+
+        return modal;
     }
 
-    // Отправить событие
-    dispatchEvent(modalId, eventType, data = {}) {
-        const event = new CustomEvent(`modal:${eventType}`, {
-            detail: { modalId, data }
-        });
-        document.dispatchEvent(event);
+    // Закрыть текущее модальное окно
+    closeModal() {
+        if (!this.currentModal) return;
+
+        const config = this.currentModal._modalConfig;
+
+        // Убираем класс показа
+        this.currentModal.classList.remove('modal-show');
+
+        // Удаляем после анимации
+        setTimeout(() => {
+            if (this.currentModal) {
+                this.currentModal.remove();
+                
+                // Вызываем callback закрытия
+                if (config && config.onClose) {
+                    config.onClose();
+                }
+                
+                // Восстанавливаем предыдущее модальное окно или убираем блокировку скролла
+                if (this.modalStack.length > 0) {
+                    this.currentModal = this.modalStack.pop();
+                    this.currentModal.style.display = 'block';
+                } else {
+                    this.currentModal = null;
+                    document.body.style.overflow = '';
+                }
+            }
+        }, 300);
+    }
+
+    // Закрыть все модальные окна
+    closeAllModals() {
+        this.modalStack = [];
+        if (this.currentModal) {
+            this.closeModal();
+        }
     }
 
     // Проверить, открыто ли модальное окно
-    isOpen(modalId) {
-        return this.activeModals.has(modalId);
+    isModalOpen() {
+        return this.currentModal !== null;
     }
 
-    // Получить список активных модальных окон
-    getActiveModals() {
-        return Array.from(this.activeModals);
+    // ПРЕДУСТАНОВЛЕННЫЕ МОДАЛЬНЫЕ ОКНА
+
+    // Диалог подтверждения
+    confirm(message, title = 'Подтверждение') {
+        return new Promise((resolve) => {
+            const content = `
+                <div class="confirm-dialog">
+                    <p>${message}</p>
+                    <div class="confirm-buttons">
+                        <button class="btn btn-secondary" data-action="cancel">Отмена</button>
+                        <button class="btn btn-primary" data-action="confirm">Подтвердить</button>
+                    </div>
+                </div>
+            `;
+
+            const modal = this.openModal(content, {
+                title,
+                size: 'small',
+                closeOnOverlay: false,
+                showCloseButton: false
+            });
+
+            modal.addEventListener('click', (e) => {
+                const action = e.target.dataset.action;
+                if (action === 'confirm') {
+                    resolve(true);
+                    this.closeModal();
+                } else if (action === 'cancel') {
+                    resolve(false);
+                    this.closeModal();
+                }
+            });
+        });
+    }
+
+    // Диалог предупреждения
+    alert(message, title = 'Внимание') {
+        return new Promise((resolve) => {
+            const content = `
+                <div class="alert-dialog">
+                    <p>${message}</p>
+                    <div class="alert-buttons">
+                        <button class="btn btn-primary" data-action="ok">OK</button>
+                    </div>
+                </div>
+            `;
+
+            const modal = this.openModal(content, {
+                title,
+                size: 'small',
+                closeOnOverlay: false,
+                showCloseButton: false
+            });
+
+            modal.addEventListener('click', (e) => {
+                if (e.target.dataset.action === 'ok') {
+                    resolve();
+                    this.closeModal();
+                }
+            });
+        });
+    }
+
+    // Форма добавления транзакции
+    showTransactionForm(type = 'expense', transaction = null) {
+        const isEdit = transaction !== null;
+        const title = isEdit ? 'Редактировать транзакцию' : 
+                     (type === 'income' ? 'Добавить доход' : 'Добавить расход');
+
+        const content = `
+            <form class="transaction-form" id="transaction-form">
+                <div class="form-group">
+                    <label for="amount">Сумма</label>
+                    <input type="number" class="form-control" id="amount" 
+                           value="${isEdit ? transaction.amount : ''}" 
+                           step="0.01" min="0" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="category">Категория</label>
+                    <select class="form-control" id="category" required>
+                        <option value="">Выберите категорию</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="description">Описание</label>
+                    <input type="text" class="form-control" id="description" 
+                           value="${isEdit ? transaction.description || '' : ''}">
+                </div>
+                
+                <div class="form-group">
+                    <label for="date">Дата</label>
+                    <input type="date" class="form-control" id="date" 
+                           value="${isEdit ? transaction.date : new Date().toISOString().split('T')[0]}" 
+                           required>
+                </div>
+                
+                <div class="form-buttons">
+                    <button type="button" class="btn btn-secondary" data-action="cancel">Отмена</button>
+                    <button type="submit" class="btn btn-primary">
+                        ${isEdit ? 'Сохранить' : 'Добавить'}
+                    </button>
+                </div>
+            </form>
+        `;
+
+        return this.openModal(content, {
+            title,
+            size: 'medium',
+            className: 'transaction-modal'
+        });
+    }
+
+    // Форма настроек
+    showSettingsForm() {
+        const content = `
+            <form class="settings-form" id="settings-form">
+                <div class="settings-section">
+                    <h4>Основные настройки</h4>
+                    
+                    <div class="form-group">
+                        <label for="user-name">Имя пользователя</label>
+                        <input type="text" class="form-control" id="user-name" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="currency">Валюта</label>
+                        <select class="form-control" id="currency">
+                            <option value="PLN">PLN (Польский злотый)</option>
+                            <option value="USD">USD (Доллар США)</option>
+                            <option value="UAH">UAH (Украинская гривна)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="theme">Тема</label>
+                        <select class="form-control" id="theme">
+                            <option value="light">Светлая</option>
+                            <option value="dark">Темная</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="settings-section">
+                    <h4>Совместный доступ</h4>
+                    
+                    <div class="form-group">
+                        <label for="budget-id">ID бюджета для присоединения</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="budget-id" 
+                                   placeholder="Введите ID бюджета">
+                            <button type="button" class="btn btn-outline-secondary" id="join-budget-btn">
+                                Присоединиться
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-buttons">
+                    <button type="button" class="btn btn-secondary" data-action="cancel">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                </div>
+            </form>
+        `;
+
+        return this.openModal(content, {
+            title: 'Настройки',
+            size: 'large',
+            className: 'settings-modal'
+        });
     }
 }
 
 // Создаем глобальный экземпляр
-const modal = new ModalComponent();
+const modalManager = new ModalManager();
 
-// Экспортируем для использования в модулях
-export default modal;
+// Экспортируем методы для удобства
+export const openModal = (content, options) => modalManager.openModal(content, options);
+export const closeModal = () => modalManager.closeModal();
+export const closeAllModals = () => modalManager.closeAllModals();
+export const isModalOpen = () => modalManager.isModalOpen();
 
-// Делаем доступным глобально
-window.modal = modal;
+// Предустановленные диалоги
+export const confirm = (message, title) => modalManager.confirm(message, title);
+export const alert = (message, title) => modalManager.alert(message, title);
 
-// Глобальные функции для использования в HTML
-window.openModal = (modalId, data) => modal.open(modalId, data);
-window.closeModal = (modalId) => modal.close(modalId);
+// Модальные окна для бюджета
+export const showTransactionForm = (type, transaction) => modalManager.showTransactionForm(type, transaction);
+export const showSettingsForm = () => modalManager.showSettingsForm();
+
+export default modalManager;
